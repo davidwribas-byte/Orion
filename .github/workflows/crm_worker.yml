@@ -2,7 +2,7 @@ name: CRM Pipeline Worker
 
 on:
   schedule:
-    - cron: '0 12 * * *'
+    - cron: '0 12 * * 1-5'
   workflow_dispatch:
 
 jobs:
@@ -26,11 +26,8 @@ jobs:
       - name: Run CRM worker
         env:
           AIRTABLE_TOKEN: ${{ secrets.AIRTABLE_TOKEN }}
-          AIRTABLE_BASE_ID: appRuCvTIYcE91U8P
-          AIRTABLE_TABLE_NAME: LEADS
+          AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
+          AIRTABLE_TABLE_NAME: ${{ secrets.AIRTABLE_TABLE_NAME }}
           OUTLOOK_SEND_ENABLED: 'false'
           CALL_E_ENABLED: 'false'
-          MS_GRAPH_TOKEN: ${{ secrets.MS_GRAPH_TOKEN }}
-          CALL_E_API_URL: ${{ secrets.CALL_E_API_URL }}
-          CALL_E_API_KEY: ${{ secrets.CALL_E_API_KEY }}
         run: python scripts/pipeline_worker.py
