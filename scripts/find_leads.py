@@ -1,7 +1,6 @@
 import os
 import json
 import time
-import base64
 from datetime import datetime, timezone
 
 import requests
@@ -50,10 +49,6 @@ def airtable_headers():
     }
 
 
-def normalize_text(value):
-    return (value or '').strip().lower()
-
-
 def lead_exists(name, phone, place_id):
     clauses = []
     if place_id:
@@ -89,28 +84,52 @@ def search_places(place_type, area):
     return r.json().get('places', [])
 
 
-def score_place(place):
+def score_place(place, place_type, area):
     rating = float(place.get('rating') or 0)
     reviews = int(place.get('userRatingCount') or 0)
     phone = place.get('nationalPhoneNumber') or ''
     score = 0
-    if rating >= 4.5:
+    if rating >= 4.6:
         score += 30
-    elif rating >= 4.0:
-        score += 20
+    elif rating >= 4.2:
+        score += 24
+    elif rating >= 3.8:
+        score += 16
     elif rating >= 3.5:
-        score += 10
-    if reviews >= 150:
+        score += 8
+    if reviews >= 200:
         score += 30
-    elif reviews >= 50:
-        score += 20
+    elif reviews >= 100:
+        score += 24
+    elif reviews >= 40:
+        score += 16
     elif reviews >= 10:
-        score += 10
+        score += 8
     if phone:
-        score += 20
+        score += 15
     if not place.get('websiteUri'):
-        score += 20
+        score += 15
+    if place_type in ['doctor', 'hair_salon', 'gym']:
+        score += 5
+    if any(x in area for x in ['Jardins', 'Itaim', 'Moema', 'Vila Olímpia', 'Higienópolis']):
+        score += 5
     return min(score, 100)
+
+
+def priority_from_score(score):
+    if score >= 80:
+        return 'Alta'
+    if score >= 60:
+        return 'Media'
+    return 'Baixa'
+
+
+def channel_for_record(phone, email):
+    if email:
+        return 'Email'
+    if phone:
+        return 'Telefone'
+    return 'Revisar manualmente'
 
 
 def to_airtable_record(place, place_type, area):
@@ -126,21 +145,25 @@ def to_airtable_record(place, place_type, area):
         return None
     if rating < 3.5 or reviews < 10:
         return None
-    score = score_place(place)
+    score = score_place(place, place_type, area)
     notes = (
         f'Lead capturado automaticamente. Nota Google: {rating}. Avaliações: {reviews}. '
         f'Sem site identificado no Google Places. Score: {score}/100. Área: {area}. '
         'Mensagem ao cliente deve falar apenas de presença profissional, confiança, WhatsApp, mapa e prévia visual.'
     )
+    email = ''
     return {
         'Nome do Negócio': name,
         'Telefone': phone,
-        'Email': '',
+        'Email': email,
         'Nicho': NICHES[place_type],
         'Cidade/Bairro': place.get('formattedAddress') or area,
         'Status': 'Pendente',
         'Notas': notes,
         'Place ID Google': place_id,
+        'Score Lead': score,
+        'Prioridade': priority_from_score(score),
+        'Canal Recomendado': channel_for_record(phone, email),
     }
 
 
@@ -176,7 +199,7 @@ def main():
                         continue
                     rec_id = insert_record(record)
                     inserted += 1
-                    created.append(f"{rec_id} | {record['Nome do Negócio']} | {record['Nicho']}")
+                    created.append(f"{rec_id} | {record['Nome do Negócio']} | {record['Nicho']} | score {record['Score Lead']}")
                     time.sleep(0.2)
             except Exception as exc:
                 print(f'ERROR area={area} type={place_type}: {exc}')
