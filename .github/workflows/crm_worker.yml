@@ -1,0 +1,36 @@
+name: CRM Pipeline Worker
+
+on:
+  schedule:
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+
+jobs:
+  crm-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Run CRM worker
+        env:
+          AIRTABLE_TOKEN: ${{ secrets.AIRTABLE_TOKEN }}
+          AIRTABLE_BASE_ID: appRuCvTIYcE91U8P
+          AIRTABLE_TABLE_NAME: LEADS
+          OUTLOOK_SEND_ENABLED: 'false'
+          CALL_E_ENABLED: 'false'
+          MS_GRAPH_TOKEN: ${{ secrets.MS_GRAPH_TOKEN }}
+          CALL_E_API_URL: ${{ secrets.CALL_E_API_URL }}
+          CALL_E_API_KEY: ${{ secrets.CALL_E_API_KEY }}
+        run: python scripts/pipeline_worker.py
