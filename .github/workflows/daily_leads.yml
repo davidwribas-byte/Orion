@@ -2,8 +2,13 @@ name: Daily Lead Finder
 
 on:
   schedule:
-    - cron: '0 11 * * *'
+    - cron: '0 11 * * 1-5'
   workflow_dispatch:
+    inputs:
+      max_leads:
+        description: 'Maximum number of leads to insert'
+        required: false
+        default: '5'
 
 jobs:
   find-leads:
@@ -27,7 +32,7 @@ jobs:
         env:
           GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
           AIRTABLE_TOKEN: ${{ secrets.AIRTABLE_TOKEN }}
-          AIRTABLE_BASE_ID: appRuCvTIYcE91U8P
-          AIRTABLE_TABLE_NAME: LEADS
-          MAX_NEW_LEADS: '5'
+          AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
+          AIRTABLE_TABLE_NAME: ${{ secrets.AIRTABLE_TABLE_NAME }}
+          MAX_NEW_LEADS: ${{ github.event.inputs.max_leads || '5' }}
         run: python scripts/find_leads.py
